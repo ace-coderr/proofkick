@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(node *)",
+      "Bash(anchor --version)",
+      "Bash(solana --version)",
+      "Bash(rustc --version)",
+      "Bash(cargo --version)",
+      "Bash(avm --version)",
+      "Bash(anchor init *)",
+      "Bash(npm pkg *)",
+      "Bash(anchor test *)",
+      "Bash(pkill -f solana-test-validator)",
+      "Bash(echo \"anchor test exit: $?\")",
+      "Read(//tmp/**)"
+    ]
+  }
+}
