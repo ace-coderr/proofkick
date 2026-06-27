@@ -1,8 +1,38 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import type { TickerMatch } from "@/lib/types";
 
 /** Live World Cup score ticker that scrolls across the top. The list is doubled
- *  so the CSS marquee loops seamlessly. */
-export function Ticker({ matches }: { matches: TickerMatch[] }) {
+ *  so the CSS marquee loops seamlessly. Initial rows are server-rendered; the
+ *  client then polls /api/ticker which proxies the authenticated TxLINE SSE
+ *  stream (falling back to mock when unauthenticated). */
+export function Ticker({ matches: initial }: { matches: TickerMatch[] }) {
+  const [matches, setMatches] = useState<TickerMatch[]>(initial);
+  const [live, setLive] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function poll() {
+      try {
+        const res = await fetch("/api/ticker", { cache: "no-store" });
+        const data = await res.json();
+        if (!cancelled && Array.isArray(data.matches) && data.matches.length) {
+          setMatches(data.matches);
+          setLive(Boolean(data.live));
+        }
+      } catch {
+        /* keep last good rows */
+      }
+    }
+    poll();
+    const id = setInterval(poll, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+
   const loop = [...matches, ...matches];
   return (
     <div
@@ -39,14 +69,15 @@ export function Ticker({ matches }: { matches: TickerMatch[] }) {
         />
         <span
           className="mono"
+          title={live ? "Live TxLINE feed" : "Demo data — no live TxLINE feed"}
           style={{
             fontWeight: 700,
             letterSpacing: ".14em",
-            color: "#FF6B7A",
+            color: live ? "#FF6B7A" : "#7E8BA6",
             fontSize: 10.5,
           }}
         >
-          LIVE
+          {live ? "LIVE" : "DEMO"}
         </span>
       </div>
       <div style={{ flex: 1, overflow: "hidden", height: "100%" }}>

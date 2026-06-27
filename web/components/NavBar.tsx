@@ -1,7 +1,7 @@
 import Link from "next/link";
-import type { PortfolioSummary } from "@/lib/types";
+import { ConnectButton } from "@/components/wallet/ConnectButton";
 
-export function NavBar({ wallet }: { wallet: PortfolioSummary }) {
+export function NavBar() {
   return (
     <div
       style={{
@@ -64,79 +64,18 @@ export function NavBar({ wallet }: { wallet: PortfolioSummary }) {
               }}
             />
           </Link>
-          <span className="pk-navlink" style={{ color: "#7E8BA6", cursor: "pointer" }}>
+          <Link href="/portfolio" className="pk-navlink" style={{ color: "#7E8BA6" }}>
             Portfolio
-          </span>
-          <span className="pk-navlink" style={{ color: "#7E8BA6", cursor: "pointer" }}>
+          </Link>
+          <Link href="/activity" className="pk-navlink" style={{ color: "#7E8BA6" }}>
             Activity
-          </span>
-          <span className="pk-navlink" style={{ color: "#7E8BA6", cursor: "pointer" }}>
+          </Link>
+          <Link href="/docs" className="pk-navlink" style={{ color: "#7E8BA6" }}>
             Docs
-          </span>
+          </Link>
         </div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 12px",
-            borderRadius: 10,
-            border: "1px solid rgba(47,138,224,.28)",
-            background: "rgba(47,138,224,.08)",
-          }}
-        >
-          <span
-            style={{
-              width: 17,
-              height: 17,
-              borderRadius: "50%",
-              background: "linear-gradient(135deg,#3B96E8,#2775CA)",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 11,
-              fontWeight: 700,
-              color: "#fff",
-              flexShrink: 0,
-            }}
-          >
-            $
-          </span>
-          <span className="mono" style={{ fontSize: 13, fontWeight: 500 }}>
-            {wallet.balanceUsdc.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-          </span>
-          <span style={{ fontSize: 11, color: "#8AA9D6", fontWeight: 600, letterSpacing: ".04em" }}>
-            USDC
-          </span>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 12px",
-            borderRadius: 10,
-            border: "1px solid rgba(255,255,255,.09)",
-            background: "rgba(255,255,255,.02)",
-          }}
-        >
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: "#19D08B",
-              boxShadow: "0 0 8px #19D08B",
-              display: "inline-block",
-            }}
-          />
-          <span className="mono" style={{ fontSize: 13, color: "#C5D0E4" }}>
-            {wallet.wallet}
-          </span>
-        </div>
-      </div>
+      <ConnectButton />
     </div>
   );
 }

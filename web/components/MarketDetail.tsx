@@ -2,20 +2,58 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useConnection, useWallet, useAnchorWallet } from "@solana/wallet-adapter-react";
+import { useWalletModal } from "@solana/wallet-adapter-react-ui";
+import { PublicKey } from "@solana/web3.js";
+import type { Wallet } from "@coral-xyz/anchor";
 import { Flag } from "./Flag";
 import { fmtUSD, fmtCompact } from "@/lib/format";
 import { wobble, liveBump } from "@/lib/odds";
 import { teamName } from "@/lib/teams";
 import { C, ag } from "@/lib/theme";
+import { placePosition } from "@/lib/anchor/actions";
+import { CLUSTER } from "@/lib/anchor/program";
 import type { Market } from "@/lib/types";
+
+type TxState = { status: "idle" | "pending" | "done" | "error"; sig?: string; err?: string };
 
 export function MarketDetail({ market, maxBalance }: { market: Market; maxBalance: number }) {
   const [tick, setTick] = useState(0);
   const [side, setSide] = useState<"yes" | "no">("yes");
   const [amount, setAmount] = useState("100");
+  const [tx, setTx] = useState<TxState>({ status: "idle" });
+
+  const { connection } = useConnection();
+  const { connected } = useWallet();
+  const anchorWallet = useAnchorWallet();
+  const { setVisible } = useWalletModal();
 
   const live = market.status === "live";
   const settled = market.status === "settled";
+
+  async function handlePlace() {
+    if (!connected || !anchorWallet) {
+      setVisible(true);
+      return;
+    }
+    const amt = parseFloat(amount) || 0;
+    if (amt <= 0) {
+      setTx({ status: "error", err: "Enter an amount greater than zero." });
+      return;
+    }
+    setTx({ status: "pending" });
+    try {
+      const sig = await placePosition(connection, anchorWallet as Wallet, {
+        market: new PublicKey(market.chain.marketAccount),
+        usdcMint: new PublicKey(market.chain.settlementMint),
+        side,
+        amountUsdc: amt,
+      });
+      setTx({ status: "done", sig });
+    } catch (e) {
+      setTx({ status: "error", err: (e as Error).message });
+    }
+  }
 
   useEffect(() => {
     if (!live) return;
@@ -438,23 +476,48 @@ export function MarketDetail({ market, maxBalance }: { market: Market; maxBalanc
             </div>
           </div>
 
-          <div
+          <button
             className="pk-place"
+            onClick={handlePlace}
+            disabled={tx.status === "pending" || (settled && connected)}
             style={{
               width: "100%",
               padding: 15,
               borderRadius: 13,
-              background: placeBg,
+              border: "none",
+              background: settled && connected ? "rgba(255,255,255,.06)" : placeBg,
               color: "#fff",
               fontSize: 15,
               fontWeight: 700,
               textAlign: "center",
-              cursor: "pointer",
+              cursor: tx.status === "pending" ? "wait" : "pointer",
+              opacity: tx.status === "pending" ? 0.8 : 1,
               boxShadow: "0 10px 26px -12px rgba(39,117,202,.8)",
             }}
           >
-            Buy {side.toUpperCase()} · {fmtUSD(amt)}
-          </div>
+            {!connected
+              ? "Connect wallet to trade"
+              : tx.status === "pending"
+                ? "Confirming on devnet…"
+                : settled
+                  ? "Market settled"
+                  : `Buy ${side.toUpperCase()} · ${fmtUSD(amt)}`}
+          </button>
+          {tx.status === "done" && tx.sig && (
+            <a
+              href={`https://explorer.solana.com/tx/${tx.sig}?cluster=${CLUSTER}`}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: "block", marginTop: 10, fontSize: 12, color: C.green, textAlign: "center" }}
+            >
+              ✓ Position placed — view transaction →
+            </a>
+          )}
+          {tx.status === "error" && (
+            <p style={{ margin: "10px 0 0", fontSize: 11.5, color: C.pink, lineHeight: 1.5, textAlign: "center" }}>
+              {tx.err}
+            </p>
+          )}
           <p style={{ margin: "12px 0 0", fontSize: 11.5, color: "#5C6880", lineHeight: 1.5, textAlign: "center" }}>
             Funds escrow to a Solana program and release automatically on verified settlement. No custodian.
           </p>

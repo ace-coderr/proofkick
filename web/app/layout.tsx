@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Ticker } from "@/components/Ticker";
 import { NavBar } from "@/components/NavBar";
+import { WalletProviders } from "@/components/wallet/WalletProviders";
 import { data } from "@/lib/data";
 
 export const metadata: Metadata = {
@@ -15,10 +16,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [ticker, summary] = await Promise.all([
-    data.getTicker(),
-    data.getPortfolioSummary(),
-  ]);
+  const ticker = await data.getTicker();
 
   return (
     <html lang="en">
@@ -31,9 +29,11 @@ export default async function RootLayout({
         />
       </head>
       <body>
-        <Ticker matches={ticker} />
-        <NavBar wallet={summary} />
-        {children}
+        <WalletProviders>
+          <Ticker matches={ticker} />
+          <NavBar />
+          {children}
+        </WalletProviders>
       </body>
     </html>
   );
