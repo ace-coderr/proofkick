@@ -2,7 +2,7 @@ import type { DataProvider } from "./provider";
 import type { Market, SettlementReceipt } from "@/lib/types";
 import { PublicKey } from "@solana/web3.js";
 import { getConnection, getReadProgram, outcomePda, CLUSTER } from "@/lib/anchor/program";
-import { marketToUi, fixtureTeams, sideToResult, usdc } from "@/lib/anchor/map";
+import { marketToUi, displayTeams, sideToResult, usdc } from "@/lib/anchor/map";
 import type { OnchainMarket, OnchainVerifiedOutcome } from "@/lib/anchor/types";
 import { base58, shorten } from "@/lib/hash";
 import { TICKER } from "./fixtures";
@@ -125,7 +125,7 @@ async function buildReceipt(marketId: string): Promise<SettlementReceipt | null>
   }
 
   const fixtureId = Number(market.fixtureId.toString());
-  const { home, away } = fixtureTeams(fixtureId);
+  const { home, away } = displayTeams(marketId);
   const winning = sideToResult(market.winningSide) ?? (outcome?.predicateHeld ? "YES" : "NO");
 
   // Real settlement tx: the most recent signature touching the outcome PDA.

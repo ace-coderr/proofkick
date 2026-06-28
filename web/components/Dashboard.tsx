@@ -5,7 +5,27 @@ import { MarketCard } from "./MarketCard";
 import { C, ag } from "@/lib/theme";
 import type { Market } from "@/lib/types";
 
-const FILTERS = ["All", "Live", "Goals", "Corners", "Settled"];
+const FILTERS = ["All", "Live", "Goals", "Corners", "Settled"] as const;
+type Filter = (typeof FILTERS)[number];
+
+// The predicate label is "Predicate · <Category>" (see lib/anchor/map.ts).
+function category(m: Market): string {
+  return m.predicate.label.split("·").pop()?.trim() ?? "";
+}
+
+function matchesFilter(m: Market, f: Filter): boolean {
+  switch (f) {
+    case "Live":
+      return m.status === "live";
+    case "Settled":
+      return m.status === "settled";
+    case "Goals":
+    case "Corners":
+      return category(m) === f;
+    default:
+      return true;
+  }
+}
 
 const STATS = [
   { label: "Total Value Locked", value: "$4.82M", accent: false },
@@ -16,11 +36,14 @@ const STATS = [
 
 export function Dashboard({ markets }: { markets: Market[] }) {
   const [tick, setTick] = useState(0);
+  const [filter, setFilter] = useState<Filter>("All");
 
   useEffect(() => {
     const iv = setInterval(() => setTick((t) => t + 1), 2200);
     return () => clearInterval(iv);
   }, []);
+
+  const shown = markets.filter((m) => matchesFilter(m, filter));
 
   return (
     <div style={{ maxWidth: 1280, margin: "0 auto", padding: "34px 28px 90px" }}>
@@ -44,23 +67,31 @@ export function Dashboard({ markets }: { markets: Market[] }) {
           </p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          {FILTERS.map((f, i) => (
-            <span
-              key={f}
-              style={{
-                padding: "8px 14px",
-                borderRadius: 9,
-                fontSize: 13,
-                fontWeight: i === 0 ? 600 : 500,
-                background: i === 0 ? "rgba(47,138,224,.16)" : "rgba(255,255,255,.02)",
-                border: i === 0 ? "1px solid rgba(47,138,224,.4)" : "1px solid rgba(255,255,255,.08)",
-                color: i === 0 ? C.text : "#9AA6BE",
-                cursor: "pointer",
-              }}
-            >
-              {f}
-            </span>
-          ))}
+          {FILTERS.map((f) => {
+            const isActive = filter === f;
+            return (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 9,
+                  fontSize: 13,
+                  fontFamily: "inherit",
+                  fontWeight: isActive ? 600 : 500,
+                  background: isActive ? "rgba(47,138,224,.16)" : "rgba(255,255,255,.02)",
+                  border: isActive
+                    ? "1px solid rgba(47,138,224,.4)"
+                    : "1px solid rgba(255,255,255,.08)",
+                  color: isActive ? C.text : "#9AA6BE",
+                  cursor: "pointer",
+                }}
+              >
+                {f}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -98,11 +129,35 @@ export function Dashboard({ markets }: { markets: Market[] }) {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
-        {markets.map((m, i) => (
-          <MarketCard key={m.id} market={m} seed={i} tick={tick} />
-        ))}
-      </div>
+      {shown.length > 0 ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
+          {shown.map((m, i) => (
+            <MarketCard key={m.id} market={m} seed={i} tick={tick} />
+          ))}
+        </div>
+      ) : (
+        <div
+          style={{
+            border: "1px solid rgba(255,255,255,.07)",
+            borderRadius: 13,
+            padding: "44px 18px",
+            textAlign: "center",
+            color: C.textDim,
+            fontSize: 14,
+            background: "linear-gradient(180deg,rgba(255,255,255,.018),transparent)",
+          }}
+        >
+          No {filter.toLowerCase()} markets right now.
+        </div>
+      )}
+
+      <p
+        className="mono"
+        style={{ margin: "20px 0 0", color: C.textMute, fontSize: 11, letterSpacing: ".04em" }}
+      >
+        Devnet demo data — pools, predicates and settlement are live on-chain; team names are
+        illustrative.
+      </p>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { PublicKey } from "@solana/web3.js";
 import type { Wallet } from "@coral-xyz/anchor";
 import { claim, fetchPositionsForOwner, fetchMarket, type Side } from "@/lib/anchor/actions";
 import { CLUSTER } from "@/lib/anchor/program";
-import { fixtureTeams, sideToResult, statusToUi, usdc, comparisonWord } from "@/lib/anchor/map";
+import { displayTeams, sideToResult, statusToUi, usdc, comparisonWord } from "@/lib/anchor/map";
 import { C } from "@/lib/theme";
 import { fmtUSD } from "@/lib/format";
 import { Flag } from "./Flag";
@@ -47,8 +47,7 @@ export function Portfolio() {
       const out: Row[] = [];
       for (const p of positions) {
         const m = await fetchMarket(connection, p.market);
-        const fixtureId = Number(m.fixtureId.toString());
-        const { home, away } = fixtureTeams(fixtureId);
+        const { home, away } = displayTeams(p.market.toBase58());
         const cmp = comparisonWord(m.comparison);
         const status = statusToUi(m.status);
         const winning = sideToResult(m.winningSide);

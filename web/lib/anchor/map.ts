@@ -77,18 +77,38 @@ const DEMO_TEAMS = [
   "BRA", "ARG", "FRA", "ESP", "ENG", "GER", "POR", "NED", "MEX", "USA", "ITA", "BEL", "CRO", "URU",
 ];
 
-export function fixtureTeams(fixtureId: number): { home: string; away: string } {
-  const n = Math.abs(fixtureId);
+function pairFromSeed(n: number): { home: string; away: string } {
   const h = n % DEMO_TEAMS.length;
   let a = (Math.floor(n / DEMO_TEAMS.length) + 1) % DEMO_TEAMS.length;
   if (a === h) a = (a + 1) % DEMO_TEAMS.length;
   return { home: DEMO_TEAMS[h], away: DEMO_TEAMS[a] };
 }
 
+export function fixtureTeams(fixtureId: number): { home: string; away: string } {
+  return pairFromSeed(Math.abs(fixtureId));
+}
+
+// Team names are NOT recorded on-chain (see the note at the top of this file) —
+// they are a best-effort render. The devnet seed creates several markets against
+// a single verifiable fixture id, so pairing purely on fixtureId makes every
+// card show the identical matchup. For visual variety we derive the *display*
+// pairing from the market's own unique PDA instead. This is purely cosmetic:
+// the predicate, threshold, pools, fixture id and all settlement data shown
+// elsewhere remain exactly the on-chain values.
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+export function displayTeams(marketAddr: string): { home: string; away: string } {
+  return pairFromSeed(hashStr(marketAddr));
+}
+
 export function marketToUi(addr: PublicKey, m: OnchainMarket): Market {
   const id = addr.toBase58();
   const fixtureId = toNum(m.fixtureId);
-  const { home, away } = fixtureTeams(fixtureId);
+  const { home, away } = displayTeams(id);
   const a = statInfo(m.statAKey);
   const cmp = comparisonWord(m.comparison);
 
