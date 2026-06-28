@@ -79,10 +79,12 @@ export function MarketDetail({ market, maxBalance }: { market: Market; maxBalanc
   const statusLabel = live ? "LIVE" : settled ? "SETTLED" : "UPCOMING";
   const score = market.score ? `${market.score[0]} - ${market.score[1]}` : "vs";
   const clock = live
-    ? `${market.minute}'`
+    ? market.minute != null
+      ? `${market.minute}'`
+      : "LIVE"
     : settled
       ? "FULL TIME"
-      : `${market.kickoffDay} ${market.kickoffTime}`;
+      : [market.kickoffDay, market.kickoffTime].filter(Boolean).join(" ") || "Upcoming";
   const placeBg = isYes
     ? "linear-gradient(135deg,#3B96E8,#2775CA)"
     : "linear-gradient(135deg,#E8607A,#D2495F)";
