@@ -69,6 +69,10 @@ export async function createMarket(
 }
 
 // ── place_position ───────────────────────────────────────────────────────────
+// The on-chain instruction uses `init_if_needed` for the Position PDA, so this
+// single call both opens a new position and tops up an existing one (same wallet
+// + market + side) — a repeat buy adds to the stake instead of failing with
+// "account already in use". Adding to the opposite side is rejected on-chain.
 export async function placePosition(
   connection: Connection,
   wallet: Wallet,

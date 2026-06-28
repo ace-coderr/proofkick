@@ -24,4 +24,6 @@ pub enum ProofKickError {
     Overflow,
     #[msg("Winning side mismatch")]
     SideMismatch,
+    #[msg("Existing position is on the other side; cannot mix sides")]
+    PositionSideMismatch,
 }

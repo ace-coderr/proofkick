@@ -137,6 +137,97 @@ describe("proofkick settlement market", () => {
     assert.equal(vaultAcc.amount.toString(), USDC(150).toString());
   });
 
+  it("tops up an existing position (init_if_needed) instead of failing", async () => {
+    // Separate market (nonce 1) so this doesn't perturb the settlement flow.
+    const nonce = new BN(1);
+    const [mkt] = PublicKey.findProgramAddressSync(
+      [Buffer.from("market"), fixtureId.toArrayLike(Buffer, "le", 8), nonce.toArrayLike(Buffer, "le", 8)],
+      program.programId
+    );
+    const [vlt] = PublicKey.findProgramAddressSync([Buffer.from("vault"), mkt.toBuffer()], program.programId);
+
+    const bettor = Keypair.generate();
+    await conn.confirmTransaction(await conn.requestAirdrop(bettor.publicKey, 2 * LAMPORTS_PER_SOL), "confirmed");
+    const ata = (await getOrCreateAssociatedTokenAccount(conn, payer, usdcMint, bettor.publicKey)).address;
+    await mintTo(conn, payer, usdcMint, ata, payer, BigInt(USDC(1000).toString()));
+
+    const [pos] = PublicKey.findProgramAddressSync(
+      [Buffer.from("position"), mkt.toBuffer(), bettor.publicKey.toBuffer()],
+      program.programId
+    );
+
+    await program.methods
+      .createMarket(fixtureId, nonce, {
+        statAKey: proof.statKey,
+        statAPeriod: proof.validation.statToProve.period,
+        statBKey: null,
+        statBPeriod: 0,
+        op: null,
+        comparison: { greaterThan: {} },
+        threshold: 0,
+      })
+      .accounts({
+        authority: payer.publicKey,
+        usdcMint,
+        market: mkt,
+        vault: vlt,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+        rent: SYSVAR_RENT_PUBKEY,
+      })
+      .rpc();
+
+    const placeYes = (amt: BN) =>
+      program.methods
+        .placePosition({ yes: {} }, amt)
+        .accounts({
+          owner: bettor.publicKey,
+          market: mkt,
+          vault: vlt,
+          ownerTokenAccount: ata,
+          position: pos,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([bettor])
+        .rpc();
+
+    // First buy creates the position; second buy from the same wallet must
+    // succeed and accumulate rather than throwing "account already in use".
+    await placeYes(USDC(100));
+    await placeYes(USDC(25));
+
+    const p = await program.account.position.fetch(pos);
+    assert.equal(p.amount.toString(), USDC(125).toString(), "stake should accumulate to 125");
+    assert.deepEqual(p.side, { yes: {} });
+    const m = await program.account.market.fetch(mkt);
+    assert.equal(m.totalYes.toString(), USDC(125).toString());
+    const vaultAcc = await getAccount(conn, vlt);
+    assert.equal(vaultAcc.amount.toString(), USDC(125).toString());
+
+    // Mixing sides on an existing position is rejected.
+    let mixed = false;
+    try {
+      await program.methods
+        .placePosition({ no: {} }, USDC(10))
+        .accounts({
+          owner: bettor.publicKey,
+          market: mkt,
+          vault: vlt,
+          ownerTokenAccount: ata,
+          position: pos,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([bettor])
+        .rpc();
+    } catch (e: any) {
+      mixed = true;
+      assert.match(e.toString(), /PositionSideMismatch/);
+    }
+    assert.isTrue(mixed, "opposite-side top-up should be rejected");
+  });
+
   it("verifies the outcome via CPI into TxLINE validate_stat", async () => {
     const v = proof.validation;
     const mapNode = (n: any) => ({ hash: n.hash, isRightSibling: n.isRightSibling });

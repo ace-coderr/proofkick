@@ -547,6 +547,11 @@
       "code": 6010,
       "name": "SideMismatch",
       "msg": "Winning side mismatch"
+    },
+    {
+      "code": 6011,
+      "name": "PositionSideMismatch",
+      "msg": "Existing position is on the other side; cannot mix sides"
     }
   ],
   "types": [

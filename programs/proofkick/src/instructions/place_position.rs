@@ -27,8 +27,11 @@ pub struct PlacePosition<'info> {
     )]
     pub owner_token_account: Account<'info, TokenAccount>,
 
+    // `init_if_needed`: the first stake creates the PDA; later stakes from the
+    // same owner on the same market reuse it (handled in the handler) instead of
+    // failing with "account already in use".
     #[account(
-        init,
+        init_if_needed,
         payer = owner,
         space = 8 + Position::INIT_SPACE,
         seeds = [POSITION_SEED, market.key().as_ref(), owner.key().as_ref()],
@@ -60,6 +63,10 @@ pub fn handler(ctx: Context<PlacePosition>, side: Side, amount: u64) -> Result<(
         amount,
     )?;
 
+    let market_key = ctx.accounts.market.key();
+    let owner_key = ctx.accounts.owner.key();
+    let position_bump = ctx.bumps.position;
+
     let market = &mut ctx.accounts.market;
     match side {
         Side::Yes => {
@@ -77,12 +84,24 @@ pub fn handler(ctx: Context<PlacePosition>, side: Side, amount: u64) -> Result<(
     }
 
     let position = &mut ctx.accounts.position;
-    position.market = market.key();
-    position.owner = ctx.accounts.owner.key();
-    position.side = side;
-    position.amount = amount;
-    position.claimed = false;
-    position.bump = ctx.bumps.position;
+    if position.owner == Pubkey::default() {
+        // Freshly created by `init_if_needed` (account is zero-initialized).
+        position.market = market_key;
+        position.owner = owner_key;
+        position.side = side;
+        position.amount = amount;
+        position.claimed = false;
+        position.bump = position_bump;
+    } else {
+        // Existing position → add to the same side's stake. Mixing sides or
+        // adding after a claim is rejected.
+        require!(!position.claimed, ProofKickError::AlreadyClaimed);
+        require!(position.side == side, ProofKickError::PositionSideMismatch);
+        position.amount = position
+            .amount
+            .checked_add(amount)
+            .ok_or(ProofKickError::Overflow)?;
+    }
 
     Ok(())
 }
