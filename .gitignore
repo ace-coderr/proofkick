@@ -7,3 +7,4 @@ test-ledger
 .yarn
 web/node_modules/
 web/.next/
+.claude/
